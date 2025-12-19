@@ -120,17 +120,27 @@
         }
 
         function openGarden(iframeId) {
-            const iframe = document.getElementById(iframeId);
-            
-            // Primary command to trigger the library drawer
-            iframe.contentWindow.postMessage({
-                type: 'show-library', 
-                library: 'macintoshgarden'
-            }, '*');
+    const iframe = document.getElementById(iframeId);
+    
+    // 1. The Official Wrapper Format (Required for newer builds)
+    const officialMsg = {
+        type: 'emulator_command',
+        command: 'show-library',
+        args: { library: 'macintoshgarden' }
+    };
 
-            // Force focus to the iframe so you can type in the search bar immediately
-            iframe.focus();
-        }
+    // 2. The Legacy Format (Just in case)
+    const legacyMsg = {
+        type: 'show-library', 
+        library: 'macintoshgarden'
+    };
+
+    // Send both to ensure compatibility
+    iframe.contentWindow.postMessage(officialMsg, '*');
+    iframe.contentWindow.postMessage(legacyMsg, '*');
+
+    console.log("Garden command sent. If the drawer doesn't open, ensure &library=true is in the iframe URL.");
+}
 
         function saveDisk() {
             alert("EXPORTING FILES:\nClick the Infinite Mac logo inside the screen > Persistent Storage > Download.");
@@ -147,3 +157,4 @@
     </script>
 </body>
 </html>
+
