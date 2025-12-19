@@ -26,7 +26,6 @@
             display: flex; flex-direction: column; align-items: center;
         }
 
-        /* Acrylic Stand Styling */
         .studio-display::before {
             content: ''; position: absolute; bottom: -40px; left: 10%; right: 10%; height: 50px;
             background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
@@ -46,7 +45,6 @@
             mask-size: contain;
         }
 
-        /* Green LED Style */
         .led { position: absolute; left: 10px; width: 10px; height: 10px; background: #1a331a; border-radius: 50%; transition: background 0.3s; }
         .led-on { background: #00ff00; box-shadow: 0 0 12px #00ff00; animation: pulse 3s infinite; }
 
@@ -60,7 +58,7 @@
 
         @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
-        .status-msg { position: fixed; bottom: 20px; color: #666; font-size: 14px; text-align: center; width: 100%; }
+        .status-msg { position: fixed; bottom: 20px; color: #fff; font-size: 14px; text-align: center; width: 100%; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
@@ -68,13 +66,13 @@
     <div class="dual-mac-wrapper">
         <div class="studio-display">
             <div class="screen-container">
-                <iframe id="it-sys7" width="800" height="600" src="https://infinitemac.org/embed?disk=System+7.5.3&machine=Macintosh+II&infinite_hd=true&auto_pause=true" allow="cross-origin-isolated"></iframe>
+                <iframe id="it-sys7" width="800" height="600" src="https://infinitemac.org/embed?disk=System+7.5.3&machine=Macintosh+II&infinite_hd=true&auto_pause=true&library=true" allow="cross-origin-isolated"></iframe>
             </div>
             <div class="controls">
                 <div id="led-sys7" class="led led-on"></div>
                 <div class="apple-logo"></div>
                 <div class="btn-row">
-                    <button class="shell-btn" onclick="openGarden('it-sys7')" title="Search Games">🌱</button>
+                    <button class="shell-btn" onclick="openGarden('it-sys7')" title="Open Macintosh Garden Library">🌱</button>
                     <button class="shell-btn" onclick="togglePower('sys7')">⏻</button>
                 </div>
             </div>
@@ -88,7 +86,7 @@
                 <div id="led-osx" class="led led-on"></div>
                 <div class="apple-logo"></div>
                 <div class="btn-row">
-                    <button class="shell-btn" onclick="saveDisk()" title="Save/Export Disk">💾</button>
+                    <button class="shell-btn" onclick="saveDisk()" title="Export Files">💾</button>
                     <button class="shell-btn" onclick="togglePower('osx')">⏻</button>
                 </div>
             </div>
@@ -99,7 +97,7 @@
 
     <script>
         const powerStates = {
-            sys7: { on: true, src: "https://infinitemac.org/embed?disk=System+7.5.3&machine=Macintosh+II&infinite_hd=true&auto_pause=true" },
+            sys7: { on: true, src: "https://infinitemac.org/embed?disk=System+7.5.3&machine=Macintosh+II&infinite_hd=true&auto_pause=true&library=true" },
             osx: { on: true, src: "https://infinitemac.org/embed?disk=Mac+OS+X+10.3&auto_pause=true" }
         };
 
@@ -122,35 +120,30 @@
         }
 
         function openGarden(iframeId) {
-    const iframe = document.getElementById(iframeId);
-    
-    // This format is more likely to be recognized by the embed worker
-    const msg = {
-        type: 'emulator_command',
-        command: 'show-library',
-        args: { library: 'macintoshgarden' }
-    };
+            const iframe = document.getElementById(iframeId);
+            
+            // Primary command to trigger the library drawer
+            iframe.contentWindow.postMessage({
+                type: 'show-library', 
+                library: 'macintoshgarden'
+            }, '*');
 
-    iframe.contentWindow.postMessage(msg, '*');
-    
-    // Fallback: Try the direct message again if the above fails
-    iframe.contentWindow.postMessage({type: 'show-library', library: 'macintoshgarden'}, '*');
-}
-
-        function saveDisk() {
-            alert("EXPORTING FILES:\nClick the Infinite Mac logo (bottom right) > Persistent Storage > Download.");
+            // Force focus to the iframe so you can type in the search bar immediately
+            iframe.focus();
         }
 
-        // Check if COI Service Worker is working
+        function saveDisk() {
+            alert("EXPORTING FILES:\nClick the Infinite Mac logo inside the screen > Persistent Storage > Download.");
+        }
+
         window.onload = () => {
             const status = document.getElementById('perf-hint');
             if (window.crossOriginIsolated) {
-                status.innerHTML = "✅ High Performance Active";
+                status.innerHTML = "<span style='color:#4CAF50'>✅ High Performance Active</span>";
             } else {
-                status.innerHTML = "⚠️ Fallback Mode (Slower). Sound may stutter.";
+                status.innerHTML = "<span style='color:#FFC107'>⚠️ Fallback Mode (Slower). Ensure coi-serviceworker.js is in your GitHub root.</span>";
             }
         };
     </script>
 </body>
 </html>
-
