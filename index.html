@@ -122,10 +122,20 @@
         }
 
         function openGarden(iframeId) {
-            const iframe = document.getElementById(iframeId);
-            // Commands Infinite Mac to open the sidebar drawer
-            iframe.contentWindow.postMessage({type: 'show-library', library: 'macintoshgarden'}, '*');
-        }
+    const iframe = document.getElementById(iframeId);
+    
+    // This format is more likely to be recognized by the embed worker
+    const msg = {
+        type: 'emulator_command',
+        command: 'show-library',
+        args: { library: 'macintoshgarden' }
+    };
+
+    iframe.contentWindow.postMessage(msg, '*');
+    
+    // Fallback: Try the direct message again if the above fails
+    iframe.contentWindow.postMessage({type: 'show-library', library: 'macintoshgarden'}, '*');
+}
 
         function saveDisk() {
             alert("EXPORTING FILES:\nClick the Infinite Mac logo (bottom right) > Persistent Storage > Download.");
@@ -143,3 +153,4 @@
     </script>
 </body>
 </html>
+
