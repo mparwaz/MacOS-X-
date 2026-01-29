@@ -51,7 +51,7 @@
         .master-btn.emergency { background: #7f1d1d; }
         .master-btn.emergency:hover { background: var(--accent-red); }
 
-        /* Studio Monitors - Updated Scaling */
+        /* Studio Monitors */
         .studio-wrapper {
             display: flex; flex-direction: row; gap: 40px; align-items: center; justify-content: center;
             transform: scale(min(1.0, 95vw / 2800px, 82vh / 1100px));
@@ -113,24 +113,28 @@
             <div class="perf-stat">FPS <span id="fps-load">60</span></div>
         </div>
 
+        <input type="file" id="fileInput" style="display:none" onchange="handleFileUpload(this)">
+        <button class="master-btn" onclick="triggerUpload()">📤 Upload File</button>
         <button id="master-mute" class="master-btn" onclick="toggleGlobalMute()">🔊 Mute</button>
         <button class="master-btn" onclick="toggleFullScreen()">🖥️ Fullscreen</button>
-        <button class="master-btn" onclick="showSaveHelp()">💾 Save</button>
     </div>
 
     <div class="studio-wrapper">
         <script>
+            // MAX RAM CONFIGURATION
             const systems = [
-                { id: 'sys7', name: 'System 7.5', disk: 'System+7.5.3', machine: 'Macintosh+II' },
-                { id: 'os8', name: 'Mac OS 8.6', disk: 'Mac+OS+8.6', machine: 'Power+Macintosh+G3' },
-                { id: 'os9', name: 'Mac OS 9.0', disk: 'Mac+OS+9.0.4', machine: 'Power+Macintosh+G3' }
+                { id: 'sys7', name: 'System 7.5', disk: 'System+7.5.3', machine: 'Macintosh+II', ram: 128 },
+                { id: 'os8', name: 'Mac OS 8.6', disk: 'Mac+OS+8.6', machine: 'Power+Macintosh+G3', ram: 768 },
+                { id: 'os9', name: 'Mac OS 9.0', disk: 'Mac+OS+9.0.4', machine: 'Power+Macintosh+G3', ram: 768 }
             ];
 
             systems.forEach(s => {
                 document.write(`
                     <div class="studio-display">
                         <div class="screen-container">
-                            <iframe id="it-${s.id}" src="https://infinitemac.org/embed?disk=${s.disk}&machine=${s.machine}&infinite_hd=true&auto_pause=false&library=true" allow="cross-origin-isolated"></iframe>
+                            <iframe id="it-${s.id}" 
+                                src="https://infinitemac.org/embed?disk=${s.disk}&machine=${s.machine}&ram=${s.ram}&infinite_hd=true&persistent_hd=true&auto_pause=false&library=true" 
+                                allow="cross-origin-isolated"></iframe>
                         </div>
                         <div class="controls">
                             <div id="led-${s.id}" class="led led-loading"></div>
@@ -142,7 +146,7 @@
                                 <button class="shell-btn" onclick="togglePower('${s.id}')">⏻</button>
                             </div>
                         </div>
-                        <div class="label">${s.name}</div>
+                        <div class="label">${s.name} (${s.ram}MB)</div>
                     </div>
                 `);
             });
@@ -156,79 +160,55 @@
             os9:  { on: true, sleeping: false }
         };
 
-        // --- IMPROVED PERFORMANCE MONITORING ---
+        // --- FILE UPLOAD LOGIC ---
+        let targetSystem = 'os9'; // Default upload target
+        function triggerUpload() {
+            document.getElementById('fileInput').click();
+        }
+
+        function handleFileUpload(input) {
+            if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const iframe = document.getElementById(`it-${targetSystem}`);
+                iframe.contentWindow.postMessage({
+                    type: "emulator_upload_file",
+                    name: file.name,
+                    data: e.target.result
+                }, "*");
+                alert(`Sending ${file.name} to ${targetSystem}... Check 'The Outside World' -> 'Uploads' in the Mac.`);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // --- PERFORMANCE MONITORING ---
         let frameCount = 0;
         let lastTime = performance.now();
 
         function updatePerfHUD() {
             const now = performance.now();
             frameCount++;
-
             if (now >= lastTime + 1000) {
                 const fps = Math.round((frameCount * 1000) / (now - lastTime));
-                const fpsEl = document.getElementById('fps-load');
-                fpsEl.innerText = fps;
-                fpsEl.style.color = fps < 45 ? "var(--accent-red)" : "var(--accent-green)";
-
-                let currentLoad = 0;
-                if (powerStates.sys7.on && !powerStates.sys7.sleeping) currentLoad += 1;
-                if (powerStates.os8.on && !powerStates.os8.sleeping) currentLoad += 2;
-                if (powerStates.os9.on && !powerStates.os9.sleeping) currentLoad += 3;
-
-                let cpuText = "IDLE";
-                let cpuColor = "#94a3b8";
-
-                if (currentLoad >= 5) {
-                    cpuText = "HIGH";
-                    cpuColor = "var(--accent-red)";
-                } else if (currentLoad >= 3) {
-                    cpuText = "MED";
-                    cpuColor = "#fbbf24";
-                } else if (currentLoad >= 1) {
-                    cpuText = "LOW";
-                    cpuColor = "var(--accent-green)";
-                }
-
-                const cpuEl = document.getElementById('cpu-load');
-                cpuEl.innerText = cpuText;
-                cpuEl.style.color = cpuColor;
-
-                const gpuBase = (currentLoad / 6) * 100;
-                const fpsDropPenalty = Math.max(0, (60 - fps) * 2); 
-                const gpuFinal = Math.min(100, Math.round(gpuBase + fpsDropPenalty));
-                
-                const gpuEl = document.getElementById('gpu-load');
-                gpuEl.innerText = gpuFinal + "%";
-                gpuEl.style.color = gpuFinal > 75 ? "var(--accent-red)" : "var(--accent-green)";
-
-                frameCount = 0;
-                lastTime = now;
+                document.getElementById('fps-load').innerText = fps;
+                frameCount = 0; lastTime = now;
             }
             requestAnimationFrame(updatePerfHUD);
         }
         updatePerfHUD();
 
-        // --- UNIVERSAL DISK MOUNTER ---
+        // --- DISK MOUNTER ---
         function mountDisk(id) {
-            let url = prompt("Paste the DIRECT URL of a .dsk, .iso, or .img file:\nSupports Macintosh Garden, Repository, and Internet Archive.");
-            
+            let url = prompt("Paste direct link to .iso / .bin:");
             if (url) {
-                url = url.trim();
-                const protectedSites = ['macintoshgarden.org', 'macintoshrepository.org', 'archive.org', 'ia80', 'ia60'];
-                const needsProxy = protectedSites.some(site => url.includes(site));
-
-                if (needsProxy && !url.includes('corsproxy.io')) {
-                    url = 'https://corsproxy.io/?' + encodeURIComponent(url);
-                }
-
-                const iframe = document.getElementById(`it-${id}`);
-                updateLED(id, 'loading');
-                iframe.contentWindow.postMessage({ type: "emulator_load_disk", url: url }, "*");
-                setTimeout(() => updateLED(id, 'ready'), 3000);
+                if (!url.includes('corsproxy.io')) url = 'https://corsproxy.io/?' + encodeURIComponent(url.trim());
+                document.getElementById(`it-${id}`).contentWindow.postMessage({ type: "emulator_load_disk", url: url }, "*");
             }
         }
 
-        // --- SYSTEM ACTIONS ---
+        // --- POWER & SLEEP ---
         window.addEventListener("message", (e) => {
             const systemEntries = Object.entries(powerStates);
             const system = systemEntries.find(([id]) => e.source === document.getElementById(`it-${id}`).contentWindow);
@@ -239,24 +219,12 @@
             document.getElementById(`led-${id}`).className = `led led-${status}`;
         }
 
-        function masterAction(action) {
-            Object.keys(powerStates).forEach(id => {
-                const state = powerStates[id];
-                if (!state.on) return;
-                if (action === 'pause' && !state.sleeping) toggleSleep(id);
-                if (action === 'unpause' && state.sleeping) toggleSleep(id);
-            });
-        }
-
         function toggleSleep(id) {
             const state = powerStates[id];
             const iframe = document.getElementById(`it-${id}`);
-            if (!state.on) return;
-
             state.sleeping = !state.sleeping;
             iframe.contentWindow.postMessage({ type: state.sleeping ? "emulator_pause" : "emulator_unpause" }, "*");
             iframe.classList.toggle('screen-sleep', state.sleeping);
-            document.getElementById(`sleep-${id}`).classList.toggle('active', state.sleeping);
             updateLED(id, state.sleeping ? 'sleep' : 'ready');
         }
 
@@ -264,39 +232,28 @@
             const state = powerStates[id];
             const iframe = document.getElementById(`it-${id}`);
             state.on = !state.on;
-            if (state.on) {
-                iframe.src = iframe.src;
-                iframe.classList.remove('screen-off');
-                updateLED(id, 'loading');
-            } else {
-                iframe.classList.add('screen-off');
-                updateLED(id, 'off');
-            }
+            if (state.on) { iframe.src = iframe.src; updateLED(id, 'loading'); iframe.classList.remove('screen-off'); }
+            else { iframe.classList.add('screen-off'); updateLED(id, 'off'); }
         }
 
-        function openGarden(id) {
-            let searchTerm = (id === 'sys7') ? "system 7" : (id === 'os8') ? "mac os 8" : "mac os 9 3d";
-            window.open(`https://macintoshgarden.org/search/node/${searchTerm}`, '_blank');
+        function masterAction(action) {
+            Object.keys(powerStates).forEach(id => {
+                if (action === 'pause' && !powerStates[id].sleeping) toggleSleep(id);
+                if (action === 'unpause' && powerStates[id].sleeping) toggleSleep(id);
+            });
         }
 
         function toggleGlobalMute() {
             const isMuted = document.getElementById('master-mute').classList.toggle('active');
-            document.getElementById('master-mute').innerText = isMuted ? "🔇 Muted" : "🔊 Mute";
             Object.keys(powerStates).forEach(id => {
                 document.getElementById(`it-${id}`).contentWindow.postMessage({ type: "emulator_command", command: "set-volume", args: { volume: isMuted ? 0 : 1 } }, "*");
             });
-        }
-
-        function showSaveHelp() {
-            alert("SYSTEM ALERT: Move files to 'Infinite HD' or use 'Export' in the emulator menu to save to your local drive.");
         }
 
         function toggleFullScreen() {
             if (!document.fullscreenElement) document.documentElement.requestFullscreen();
             else document.exitFullscreen();
         }
-
-        window.onbeforeunload = () => "Unsaved work will be lost!";
     </script>
 </body>
 </html>
