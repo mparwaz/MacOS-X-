@@ -305,7 +305,7 @@ async function checkStorage() {
             // If the DB opens, we can "ping" the frames
             Object.keys(powerStates).forEach(id => {
                 const iframe = document.getElementById(`it-${id}`);
-                iframe.contentWindow.postMessage({ type: "emulator_command", command: "persist" }, "*");
+                iframe.contentWindow.postMessage("persist", "*");
             });
         };
         
@@ -323,5 +323,6 @@ setTimeout(checkStorage, 5000);
     </script>
 </body>
 </html>
+
 
 
