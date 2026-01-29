@@ -183,17 +183,56 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // --- PERFORMANCE MONITORING ---
+        // --- FIXED PERFORMANCE MONITORING ---
         let frameCount = 0;
         let lastTime = performance.now();
 
         function updatePerfHUD() {
             const now = performance.now();
             frameCount++;
+
             if (now >= lastTime + 1000) {
+                // 1. Calculate Real FPS
                 const fps = Math.round((frameCount * 1000) / (now - lastTime));
-                document.getElementById('fps-load').innerText = fps;
-                frameCount = 0; lastTime = now;
+                const fpsEl = document.getElementById('fps-load');
+                fpsEl.innerText = fps;
+                fpsEl.style.color = fps < 30 ? "var(--accent-red)" : "var(--accent-green)";
+
+                // 2. Calculate Simulated CPU Load based on Active Systems
+                let activeCount = 0;
+                Object.keys(powerStates).forEach(id => {
+                    if (powerStates[id].on && !powerStates[id].sleeping) {
+                        activeCount++;
+                    }
+                });
+
+                const cpuEl = document.getElementById('cpu-load');
+                if (activeCount === 0) {
+                    cpuEl.innerText = "IDLE";
+                    cpuEl.style.color = "#94a3b8";
+                } else if (activeCount === 1) {
+                    cpuEl.innerText = "LOW";
+                    cpuEl.style.color = "var(--accent-green)";
+                } else if (activeCount === 2) {
+                    cpuEl.innerText = "MED";
+                    cpuEl.style.color = "#fbbf24";
+                } else {
+                    cpuEl.innerText = "HIGH";
+                    cpuEl.style.color = "var(--accent-red)";
+                }
+
+                // 3. Calculate Simulated GPU Usage
+                // Formula: (Active Systems * 25%) + (jitter for realism)
+                let gpuBase = activeCount * 25;
+                let jitter = Math.floor(Math.random() * 5);
+                let gpuFinal = activeCount > 0 ? gpuBase + jitter : 0;
+                
+                const gpuEl = document.getElementById('gpu-load');
+                gpuEl.innerText = gpuFinal + "%";
+                gpuEl.style.color = gpuFinal > 70 ? "var(--accent-red)" : "var(--accent-green)";
+
+                frameCount = 0;
+                lastTime = now;
             }
             requestAnimationFrame(updatePerfHUD);
         }
@@ -257,3 +296,4 @@
     </script>
 </body>
 </html>
+
