@@ -50,6 +50,7 @@
         .master-btn:hover { background: var(--accent-blue); transform: translateY(-1px); }
         .master-btn.emergency { background: #7f1d1d; }
         .master-btn.emergency:hover { background: var(--accent-red); }
+        .master-btn.sync { background: #1e293b; border: 1px solid var(--accent-green); }
 
         /* Studio Monitors */
         .studio-wrapper {
@@ -115,6 +116,7 @@
 
         <input type="file" id="fileInput" style="display:none" onchange="handleFileUpload(this)">
         <button class="master-btn" onclick="triggerUpload()">📤 Upload File</button>
+        <button class="master-btn sync" onclick="syncAllHds()">💾 Sync HD</button>
         <button id="master-mute" class="master-btn" onclick="toggleGlobalMute()">🔊 Mute</button>
         <button class="master-btn" onclick="toggleFullScreen()">🖥️ Fullscreen</button>
     </div>
@@ -243,11 +245,28 @@
             }
         }
 
-        // --- POWER & SLEEP ---
+        // --- POWER, SLEEP & PERSISTENCE ---
         window.addEventListener("message", (e) => {
             const systemEntries = Object.entries(powerStates);
-            const system = systemEntries.find(([id]) => e.source === document.getElementById(`it-${id}`).contentWindow);
-            if (system && e.data.type === "emulator_loaded") updateLED(system[0], 'ready');
+            const foundSystem = systemEntries.find(([id]) => e.source === document.getElementById(`it-${id}`).contentWindow);
+            
+            if (foundSystem) {
+                const id = foundSystem[0];
+                
+                // 1. Handle regular loaded state
+                if (e.data.type === "emulator_loaded") {
+                    updateLED(id, 'ready');
+                }
+                
+                // 2. Handle Saved HD Activation (The "Easy Way" Handshake)
+                if (e.data.type === "emulator_ready") {
+                    console.log(`System ${id} requesting Persistent HD...`);
+                    e.source.postMessage({
+                        type: "emulator_command",
+                        command: "mount_persistent_disk"
+                    }, "*");
+                }
+            }
         });
 
         function updateLED(id, status) {
@@ -279,6 +298,17 @@
             });
         }
 
+        function syncAllHds() {
+            Object.keys(powerStates).forEach(id => {
+                const iframe = document.getElementById(`it-${id}`);
+                iframe.contentWindow.postMessage({ 
+                    type: "emulator_command", 
+                    command: "persist" 
+                }, "*");
+            });
+            alert("All systems synced to IndexedDB.");
+        }
+
         function toggleGlobalMute() {
             const isMuted = document.getElementById('master-mute').classList.toggle('active');
             Object.keys(powerStates).forEach(id => {
@@ -299,14 +329,8 @@
                 
                 request.onsuccess = function() {
                     console.log("✅ Persistence Database Access: OK");
-                    Object.keys(powerStates).forEach(id => {
-                        const iframe = document.getElementById(`it-${id}`);
-                        // structured command format for the 1GB Saved HD
-                        iframe.contentWindow.postMessage({ 
-                            type: "emulator_command", 
-                            command: "persist" 
-                        }, "*");
-                    });
+                    // Periodically tell the frames to flush their write buffers
+                    syncAllHds();
                 };
                 
                 request.onerror = function() {
@@ -317,8 +341,8 @@
             }
         }
 
-        // Sync storage 5 seconds after initial boot sequence
-        setTimeout(checkStorage, 5000);
+        // Initial sync after boot sequence
+        setTimeout(checkStorage, 8000);
     </script>
 </body>
 </html>
