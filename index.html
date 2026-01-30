@@ -302,16 +302,18 @@ async function checkStorage() {
         
         request.onsuccess = function() {
             console.log("✅ Persistence Database Access: OK");
-            // If the DB opens, we can "ping" the frames
             Object.keys(powerStates).forEach(id => {
                 const iframe = document.getElementById(`it-${id}`);
-                iframe.contentWindow.postMessage("persist", "*");
+                // Wrap the command in the required object format
+                iframe.contentWindow.postMessage({ 
+                    type: "emulator_command", 
+                    command: "persist" 
+                }, "*");
             });
         };
         
         request.onerror = function() {
-            console.error("❌ Persistence Database Access: BLOCKED by browser");
-            alert("Storage Blocked! Please click the 'Lock' icon in the address bar and enable 'Cookies/Site Data'.");
+            console.error("❌ Persistence Database Access: BLOCKED");
         };
     } catch (e) {
         console.error("Storage check failed:", e);
@@ -323,6 +325,7 @@ setTimeout(checkStorage, 5000);
     </script>
 </body>
 </html>
+
 
 
 
