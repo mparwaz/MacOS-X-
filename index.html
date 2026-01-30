@@ -133,7 +133,7 @@
                     <div class="studio-display">
                         <div class="screen-container">
                             <iframe id="it-${s.id}" 
-                                src="https://infinitemac.org/embed?disk=${s.disk}&machine=${s.machine}&ram=${s.ram}&infinite_hd=true&persistent_hd=true&auto_pause=false&library=true" 
+                                src="https://infinitemac.org/embed?disk=${s.disk}&machine=${s.machine}&ram=${s.ram}&infinite_hd=true&includeSavedHD=true&persistent_hd=true&auto_pause=false&library=true" 
                                 allow="cross-origin-isolated"></iframe>
                         </div>
                         <div class="controls">
@@ -192,13 +192,11 @@
             frameCount++;
 
             if (now >= lastTime + 1000) {
-                // 1. Calculate Real FPS
                 const fps = Math.round((frameCount * 1000) / (now - lastTime));
                 const fpsEl = document.getElementById('fps-load');
                 fpsEl.innerText = fps;
                 fpsEl.style.color = fps < 30 ? "var(--accent-red)" : "var(--accent-green)";
 
-                // 2. Calculate Simulated CPU Load based on Active Systems
                 let activeCount = 0;
                 Object.keys(powerStates).forEach(id => {
                     if (powerStates[id].on && !powerStates[id].sleeping) {
@@ -221,8 +219,6 @@
                     cpuEl.style.color = "var(--accent-red)";
                 }
 
-                // 3. Calculate Simulated GPU Usage
-                // Formula: (Active Systems * 25%) + (jitter for realism)
                 let gpuBase = activeCount * 25;
                 let jitter = Math.floor(Math.random() * 5);
                 let gpuFinal = activeCount > 0 ? gpuBase + jitter : 0;
@@ -255,7 +251,8 @@
         });
 
         function updateLED(id, status) {
-            document.getElementById(`led-${id}`).className = `led led-${status}`;
+            const el = document.getElementById(`led-${id}`);
+            if (el) el.className = `led led-${status}`;
         }
 
         function toggleSleep(id) {
@@ -294,38 +291,34 @@
             else document.exitFullscreen();
         }
 
-        // Add this at the bottom of your <script> section
-async function checkStorage() {
-    try {
-        const dbName = "infinite-mac-disk-cache";
-        const request = indexedDB.open(dbName);
-        
-        request.onsuccess = function() {
-            console.log("✅ Persistence Database Access: OK");
-            Object.keys(powerStates).forEach(id => {
-                const iframe = document.getElementById(`it-${id}`);
-                // Wrap the command in the required object format
-                iframe.contentWindow.postMessage({ 
-                    type: "emulator_command", 
-                    command: "persist" 
-                }, "*");
-            });
-        };
-        
-        request.onerror = function() {
-            console.error("❌ Persistence Database Access: BLOCKED");
-        };
-    } catch (e) {
-        console.error("Storage check failed:", e);
-    }
-}
+        // --- PERSISTENCE & STORAGE SYNC ---
+        async function checkStorage() {
+            try {
+                const dbName = "infinite-mac-disk-cache";
+                const request = indexedDB.open(dbName);
+                
+                request.onsuccess = function() {
+                    console.log("✅ Persistence Database Access: OK");
+                    Object.keys(powerStates).forEach(id => {
+                        const iframe = document.getElementById(`it-${id}`);
+                        // structured command format for the 1GB Saved HD
+                        iframe.contentWindow.postMessage({ 
+                            type: "emulator_command", 
+                            command: "persist" 
+                        }, "*");
+                    });
+                };
+                
+                request.onerror = function() {
+                    console.error("❌ Persistence Database Access: BLOCKED");
+                };
+            } catch (e) {
+                console.error("Storage check failed:", e);
+            }
+        }
 
-// Run the check 5 seconds after boot
-setTimeout(checkStorage, 5000);
+        // Sync storage 5 seconds after initial boot sequence
+        setTimeout(checkStorage, 5000);
     </script>
 </body>
 </html>
-
-
-
-
